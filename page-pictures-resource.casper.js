@@ -46,13 +46,22 @@ var images = [];
 //    exports.hashCodeHex = hashCodeHex;
 //}()
 
+
+function dump_backtrace(msg,backtrace){
+    casper.echo('backtrace: '+msg);
+    for ( var i = 0 ; i < backtrace.length ; i++ ) {
+	var f = backtrace[i];
+	casper.echo('    '+f.file+':'+f.line+': '+f.function);
+    }
+}
+
 //casper.options.waitTimeout = timeout;
 casper.userAgent(agent);
 
 casper.on('remote.message',function(message){ this.echo('message: '+message) });
 
-casper.on('error',function(msg,backtrace){ this.echo('error: '+msg); dump(backtrace[0]) });
-casper.on('page.error',function(msg,backtrace){ this.echo('page.error:'+msg); dump(backtrace[0]) });
+casper.on('error',function(msg,backtrace){ dump_backtrace('error: '+msg,backtrace) });//this.echo('error: '+msg); dump(backtrace[0]) });
+casper.on('page.error',function(msg,backtrace){ dump_backtrace('page.error: '+msg,backtrace) });//this.echo('page.error:'+msg); dump(backtrace[0]) });
 casper.on('complete.error',function(err){ this.echo('complete.error: '+err) });
 
 casper.on('resource.received',function(resource){
@@ -103,7 +112,7 @@ casper.start().eachThen(urls,function(response){
 			    src: img.src
 			};
 
-			console.log('### client ### imgs-'+i+': '+info.width+'x'+info.height+' '+info.mimeType+' '+info.src);
+			//console.log('### client ### imgs-'+i+': '+info.width+'x'+info.height+' '+info.mimeType+' '+info.src);
 
 			if ( info.width > 450 && info.height > 450 && info.width * info.height > 288000 ) {
 			    srcs.push(info);
@@ -122,11 +131,20 @@ casper.start().eachThen(urls,function(response){
 
 	this.then(function(){
 
-	    var url = this.getCurrentUrl(),
-	    frames = this.getElementsInfo('iframe'),
-	    num_frames = frames.length,
-	    frame_indices = [] ;
+	    var url = this.getCurrentUrl(),frames,num_frames=0,frame_indices=[];
 
+/*
+backtrace: error: CasperError: Cannot get information from iframe: no elements found.
+    phantomjs://platform/casper.js:1093: getElementsInfo
+    phantomjs://code/page-pictures:135: 
+*/
+
+	    try {
+		frames = this.getElementsInfo('iframe') ;
+		num_frames = frames.length ;
+	    }catch(e){
+		/* */
+	    }
 
 	    //dump(frames);
 
@@ -150,6 +168,7 @@ casper.start().eachThen(urls,function(response){
 		    this.withFrame(frame_indices[i],function(response){
 			var url = response.url;
 			this.echo('=== withFrame ===: '+url);
+			dump_indices(response,'withFrame');
 			collect_images_bound(url);
 		    })
 		}
@@ -176,3 +195,4 @@ casper.then(function(){
 });
 
 casper.run()
+// vim: se filetype=javascript
