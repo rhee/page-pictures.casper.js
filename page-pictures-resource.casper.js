@@ -166,8 +166,8 @@ backtrace: error: CasperError: Cannot get information from iframe: no elements f
 	    if ( frame_indices.length > 0 ) {
 		for ( var i = 0; i < frame_indices.length; i++ ) {
 		    this.withFrame(frame_indices[i],function(response){
-			var url = response.url;
-			this.echo('=== withFrame ===: '+url);
+			var url = response.url, redirect = response.redirectURL;
+			this.echo('=== withFrame ===: '+url+' '+redirect);
 			dump_indices(response,'withFrame');
 			collect_images_bound(url);
 		    })
