@@ -26,7 +26,25 @@ var minSize = 170000; /* 170k ? */
 var urls = casper.cli.args.slice(0);
 var images = [];
 
-var hashcode = require('./hashcode.js');
+//!!function(){
+    var hashCode = function(str){
+	var hash = 0;
+	if (str.length == 0) return hash;
+	for (i = 0; i < str.length; i++) {
+	    char = str.charCodeAt(i);
+	    hash = ((hash<<5)-hash)+char;
+	    hash = hash & hash; // Convert to 32bit integer
+	}
+	return hash;
+    };
+    var hashCodeHex = function(str){
+	var num = hashCode(str);
+	return (num < 0 ? (0xFFFFFFFF + num + 1) : num).toString(16);
+    };
+//    //export as casperjs module
+//    exports.hashCode = hashCode;
+//    exports.hashCodeHex = hashCodeHex;
+//}()
 
 //casper.options.waitTimeout = timeout;
 casper.userAgent(agent);
@@ -62,7 +80,7 @@ casper.start().eachThen(urls,function(response){
     this.thenOpen(response.data,function(response){
 	var url = response.url,
 	collect_images_bound = function(url) {
-	    this.echo('collect: '+hashcode.hashCodeHex(url)+' '+url);
+	    this.echo('collect: '+hashCodeHex(url)+' '+url);
 	    var new_images = this.evaluate(function(){
 		/* BEGIN client */
 
@@ -147,7 +165,7 @@ casper.then(function(){
 	var info = images[i],
 	src = info.src,
 	basename = src.split(/[?#]/).shift().split(/[\/]/).pop(), /* basename() */
-	filename = ''+basename+'_'+hashcode.hashCodeHex(src)+'.png';
+	filename = ''+basename+'_'+hashCodeHex(src)+'.png';
 	this.echo('download: '+src+' '+filename);
 	try{
 	    this.download(src,filename);

@@ -1,1 +1,0 @@
-page-pictures-resource.casper.js
