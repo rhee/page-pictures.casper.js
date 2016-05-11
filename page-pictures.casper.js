@@ -1,3 +1,4 @@
+#!/usr/bin/env casperjs
 ;
 var casper = require('casper').create({
     //verbose: true,
