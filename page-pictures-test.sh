@@ -1,16 +1,21 @@
 :
 
 dir=$( dirname $( realpath "$0" ) )
+#script=page-pictures-onload.casper.js
+script=page-pictures-resource.casper.js
+
+echo "dir=$dir script=$script" 1>&2
 
 while [ ! -z "$1" ]
 do
   arg="$1"
   shift
   case "$arg" in
-    1) casperjs "$dir/page-pictures.casper.js" "http://blog.daum.net/_blog/BlogTypeView.do?blogid=0q54d&articleno=122&categoryId=6&regdt=20151115081548&totalcnt=25" ;;
-    2) casperjs "$dir/page-pictures.casper.js" "http://seokblog.tistory.com/117" ;;
-    3) casperjs "$dir/page-pictures.casper.js" "http://seokblog.tistory.com/118" ;;
-    4) casperjs "$dir/page-pictures.casper.js" "http://quasarzone.co.kr/bbs/board.php?bo_table=qb_image&wr_id=91" ;;
+    1) casperjs "$dir/$script" "http://blog.daum.net/_blog/BlogTypeView.do?blogid=0q54d&articleno=122&categoryId=6&regdt=20151115081548&totalcnt=25" ;;
+    2) casperjs "$dir/$script" "http://seokblog.tistory.com/117" ;;
+    3) casperjs "$dir/$script" "http://seokblog.tistory.com/118" ;;
+    4) casperjs "$dir/$script" "http://quasarzone.co.kr/bbs/board.php?bo_table=qb_image&wr_id=91" ;;
+    5) casperjs "$dir/$script" "http://aion.plaync.com/board/server/view?articleID=3103823&page=&rootCategory=28&category=1411" ;;
   esac
 done
 
