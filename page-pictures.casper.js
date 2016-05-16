@@ -1,4 +1,5 @@
 #!/usr/bin/env casperjs
+
 var casper = require('casper').create({
     //verbose: true,
     logLevel: "debug",
@@ -19,14 +20,20 @@ function dump_indices(obj,tag) {
 }
 
 
-var agent = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.94 Safari/537.36';
-var timeout = 5000; /* 5s ? */
-var minSize = 170000; /* 170k ? */
+var config = {
+    agent : 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.94 Safari/537.36',
+    timeout : 5000, /* 5s ? */
+    minSize : 170000, /* 170k ? */
+    minWidth : 450,
+    minHeight : 450,
+    minPixels : 288000,
+}
 
 var urls = casper.cli.args.slice(0);
 var images = [];
 
 //!!function(){
+
     var hashCode = function(str){
 	var hash = 0;
 	if (str.length == 0) return hash;
@@ -37,10 +44,38 @@ var images = [];
 	}
 	return hash;
     };
+
     var hashCodeHex = function(str){
 	var num = hashCode(str);
 	return (num < 0 ? (0xFFFFFFFF + num + 1) : num).toString(16);
     };
+
+    var onImageSize = function (src,callback) {
+	/* get natural (unscaled) size of the image */
+
+	var img = new Image(),width,height,mimeType,src;
+
+	img.onLoad = function(){
+	    var info = {
+		width: img.width,
+		height: img.height,
+		mimeType: img.mimeType,
+		src: img.src
+	    };
+
+	    callback && callback(info);
+
+	    /// if ( info.width > config.minWidth &&
+	    ///      info.height > config.minHeight &&
+	    ///      info.width * info.height > config.minPixels ) {
+	    ///     srcs.push(info);
+	    /// }
+
+	};
+	img.src = src;
+	if(img.complete || img.readyState === 4) img.onLoad();
+    }
+
 //    //export as casperjs module
 //    exports.hashCode = hashCode;
 //    exports.hashCodeHex = hashCodeHex;
@@ -55,8 +90,8 @@ function dump_backtrace(msg,backtrace){
     }
 }
 
-//casper.options.waitTimeout = timeout;
-casper.userAgent(agent);
+//casper.options.waitTimeout = config.timeout;
+casper.userAgent(config.agent);
 
 casper.on('remote.message',function(message){ this.echo('message: '+message) });
 
@@ -67,19 +102,27 @@ casper.on('complete.error',function(err){ this.echo('complete.error: '+err) });
 casper.on('resource.received',function(resource){
     //dump_indices(resource,'resource.received');
 
-    var url = resource.url,
-    contentType = resource.contentType,
-    bodySize = resource.bodySize ;
+    var url = resource.url;
 
-    if ( /^image\//.test(contentType) &&
+    if ( /^image\//.test(resource.contentType) &&
 	 resource.bodySize &&
-	 resource.bodySize > minSize ) {
+	 resource.bodySize > config.minSize ) {
 
-	if ( url.length > 500 ) {
-	    url = url.substr(0,500)+'...';
-	}
+	onImageLoad(resource.url,function(info){
 
-	this.echo('resource.recevied: '+contentType+' '+bodySize+' '+url);
+	    if ( info.width >= config.minWidth &&
+		 info.height >= config.minHeight &&
+		 info.width * info.height >= config.minPixels ) {
+
+		if ( url.length > 500 ) {
+		    url = url.substr(0,500)+'...';
+		}
+
+		this.echo('resource.recevied: '+resource.contentType+' '+resource.bodySize+' '+url);
+
+	    }
+
+	});
 
     }
 
@@ -92,6 +135,15 @@ casper.start().eachThen(urls,function(response){
 	    this.echo('collect: '+hashCodeHex(url)+' '+url);
 	    var new_images = this.evaluate(function(){
 		/* BEGIN client */
+
+var config = {
+    agent : 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.94 Safari/537.36',
+    timeout : 5000, /* 5s ? */
+    minSize : 170000, /* 170k ? */
+    minWidth : 450,
+    minHeight : 450,
+    minPixels : 288000,
+};
 
 		var imgs = document.querySelectorAll('img'),
 		srcs = [];
@@ -114,7 +166,9 @@ casper.start().eachThen(urls,function(response){
 
 			//console.log('### client ### imgs-'+i+': '+info.width+'x'+info.height+' '+info.mimeType+' '+info.src);
 
-			if ( info.width > 450 && info.height > 450 && info.width * info.height > 288000 ) {
+			if ( info.width > config.minWidth &&
+			     info.height > config.minHeight &&
+			     info.width * info.height > config.minPixels ) {
 			    srcs.push(info);
 			}
 
@@ -131,25 +185,23 @@ casper.start().eachThen(urls,function(response){
 
 	this.then(function(){
 
-	    var url = this.getCurrentUrl(),frames,num_frames=0,frame_indices=[];
+	    var url = this.getCurrentUrl(),frames=[],frame_indices=[];
 
-/*
-backtrace: error: CasperError: Cannot get information from iframe: no elements found.
-    phantomjs://platform/casper.js:1093: getElementsInfo
-    phantomjs://code/page-pictures:135: 
-*/
+	    /*
+	    backtrace: error: CasperError: Cannot get information from iframe: no elements found.
+		phantomjs://platform/casper.js:1093: getElementsInfo
+		phantomjs://code/page-pictures:135: 
+	    */
 
 	    try {
 		frames = this.getElementsInfo('iframe') ;
-		num_frames = frames.length ;
 	    }catch(e){
 		/* */
 	    }
 
 	    //dump(frames);
 
-
-	    for ( var i = 0; i < num_frames; i++ ) {
+	    for ( var i = 0; i < frames.length; i++ ) {
 		var frame = frames[i];
 		//dump_indices(frame,'frame');
 		if ( frame.attributes.src && frame.attributes.src.length > 0 ) {
@@ -157,19 +209,21 @@ backtrace: error: CasperError: Cannot get information from iframe: no elements f
 		}
 	    }
 
-	    this.echo('found frames: '+frame_indices.length+'/'+num_frames);
+	    this.echo('found frames: '+frame_indices.length+'/'+frames.length);
 
-	    this.wait(timeout);
+	    this.wait(config.timeout);
 
 	    collect_images_bound(url);
 
 	    if ( frame_indices.length > 0 ) {
 		for ( var i = 0; i < frame_indices.length; i++ ) {
 		    this.withFrame(frame_indices[i],function(response){
-			var url = response.url, redirect = response.redirectURL;
-			this.echo('=== withFrame ===: '+url+' '+redirect);
-			dump_indices(response,'withFrame');
-			collect_images_bound(url);
+
+			//this.echo('=== withFrame ===: '+response.url+' '+response.redirectURL);
+			//dump_indices(response,'withFrame');
+
+			collect_images_bound(response.url);
+
 		    })
 		}
 	    }
