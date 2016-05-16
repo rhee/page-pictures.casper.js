@@ -1,5 +1,4 @@
 #!/bin/sh
-//bin/true; exec casperjs --web-security=false "$0" "$@"
 //bin/true; exec casperjs --web-security=false --verbose --log-level=info "$0" "$@"
 //bin/true; exec casperjs --web-security=false --verbose --log-level=info --proxy=127.0.0.1:9050 --proxy-type=socks5 "$0" "$@"
 (function () {
@@ -8,13 +7,12 @@
         //verbose: true,
         //logLevel: "info",
         pageSettings: { webSecurityEnabled: false },
-        clientScripts: ["spark-md5.js"]
+        //clientScripts: ['./spark-md5.js']
     });
 
     var urls = casper.cli.args.slice(0);
 
-    var utils = require('utils'),
-        SparkMD5 = require('spark-md5');
+    var utils = require('utils');
 
     var config = {
         agent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.94 Safari/537.36',
@@ -46,11 +44,25 @@
         casper_dump_shallow(backtrace, msg);
     }
 
+    function casper_hash_string(str) {
+	var hashCode = function (str) {
+	    var hash = 0;
+	    if (str.length == 0) return hash;
+	    for (i = 0; i < str.length; i++) {
+		char = str.charCodeAt(i);
+		hash = ((hash << 5) - hash) + char;
+		hash = hash & hash; // Convert to 32bit integer
+	    }
+	    return hash;
+	}, num = hashCode(str);
+	return (num < 0 ? (0xFFFFFFFF + num + 1) : num).toString(16);
+    }
+
     function casper_download_image(src, mimeType, hash, outdir) {
 
         var basename = casper_basename(src),
             ext = mimeType.split(/\//).pop().toLowerCase(),
-            filename = (outdir ? outdir : '') + (hash ? hash : basename + '_' + SparkMD5.hash(src, false)) + '.' + ext;
+            filename = (outdir ? outdir : '') + (hash ? hash : basename + '_' + casper_hash_string(src)) + '.' + ext;
         casper.echo('casper_download_image: ' + casper_abbrev_url(src) + ' ' + filename);
         try {
             casper.download(src, filename);
@@ -101,6 +113,7 @@
                                 img.height >= config.minHeight &&
                                 img.width * img.height >= config.minPixels) {
                                 // XXX check, takes too long ???
+				/*
                                 hash = (function (src) {
                                     var tstart = Date.now(),
                                     hash = SparkMD5.hashBinary(__utils__.getBinary(src), false),
@@ -108,6 +121,7 @@
                                     console.log('hashBinary elapsed: ' + telapsed + ' src=' + src);
 				    return hash;
                                 })(img.src);
+				*/
                                 window.collected_images[url] = {
                                     mimeType: mimeType,
                                     hash: hash
