@@ -100,51 +100,55 @@
 
     casper.start().eachThen(urls, function (response) {
 
-        this.thenOpen(response.data);
-        this.then(function () {
-            this.evaluate(function (resources, config) {
-                window.collected_images = {};
-                for (url in resources) {
-                    !function (url, mimeType) {
-                        var img = new Image();
-                        img.onLoad = function () {
-                            var hash;
-                            if (img.width >= config.minWidth &&
-                                img.height >= config.minHeight &&
-                                img.width * img.height >= config.minPixels) {
-                                // XXX check, takes too long ???
-				/*
-                                hash = (function (src) {
-                                    var tstart = Date.now(),
-                                    hash = SparkMD5.hashBinary(__utils__.getBinary(src), false),
-                                    telapsed = Date.now() - tstart;
-                                    console.log('hashBinary elapsed: ' + telapsed + ' src=' + src);
-				    return hash;
-                                })(img.src);
-				*/
-                                window.collected_images[url] = {
-                                    mimeType: mimeType,
-                                    hash: hash
-                                };
-                            }
-                        }
-                        img.src = url;
-                        if (img.complete || img.readyState === 4) {
-                            img.onLoad();
-                        }
-                    } (url, resources[url]);
-                }
-            }, casper_image_resources, config);
-        });
-        this.then(function () {
-            var images = this.evaluate(function () { return window.collected_images });
-            //this.echo('=== end of scan ===: images=' + JSON.stringify(images));
-            casper_dump_shallow(images, '=== end of scan ===');
-            for (url in images) {
-                var info = images[url];
-                casper_download_image(url, info.mimeType, info.hash, '1/');
-            }
-        });
+	if ( ! response.data ) {
+	    this.echo('=== skip empty url===');
+	} else {
+	    this.thenOpen(response.data);
+	    this.then(function () {
+		this.evaluate(function (resources, config) {
+		    window.collected_images = {};
+		    for (url in resources) {
+			!function (url, mimeType) {
+			    var img = new Image();
+			    img.onLoad = function () {
+				var hash;
+				if (img.width >= config.minWidth &&
+				    img.height >= config.minHeight &&
+				    img.width * img.height >= config.minPixels) {
+				    // XXX check, takes too long ???
+				    /*
+				    hash = (function (src) {
+					var tstart = Date.now(),
+					hash = SparkMD5.hashBinary(__utils__.getBinary(src), false),
+					telapsed = Date.now() - tstart;
+					console.log('hashBinary elapsed: ' + telapsed + ' src=' + src);
+					return hash;
+				    })(img.src);
+				    */
+				    window.collected_images[url] = {
+					mimeType: mimeType,
+					hash: hash
+				    };
+				}
+			    }
+			    img.src = url;
+			    if (img.complete || img.readyState === 4) {
+				img.onLoad();
+			    }
+			} (url, resources[url]);
+		    }
+		}, casper_image_resources, config);
+	    });
+	    this.then(function () {
+		var images = this.evaluate(function () { return window.collected_images });
+		//this.echo('=== end of scan ===: images=' + JSON.stringify(images));
+		casper_dump_shallow(images, '=== end of scan ===');
+		for (url in images) {
+		    var info = images[url];
+		    casper_download_image(url, info.mimeType, info.hash, '1/');
+		}
+	    });
+	}
 
     });
 
