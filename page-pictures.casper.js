@@ -1,6 +1,6 @@
 #!/bin/sh
-//bin/true; exec casperjs --web-security=false --verbose --log-level=info "$0" "$@"
-//bin/true; exec casperjs --web-security=false --verbose --log-level=info --proxy=127.0.0.1:9050 --proxy-type=socks5 "$0" "$@"
+//bin/true; exec casperjs --web-security=false --ignore-ssl-errors=true --verbose --log-level=info "$0" "$@"
+//bin/true; exec casperjs --web-security=false --ignore-ssl-errors=true --verbose --log-level=info --proxy=127.0.0.1:9050 --proxy-type=socks5 "$0" "$@"
 (function () {
 
     var casper = require('casper').create({
@@ -30,7 +30,7 @@
 
     function casper_abbrev_url(url, limit) {
         limit = limit || 100;
-        return (url.length > limit) ? '... ' + casper_basename(url) : url;
+        return (url.length > limit) ? '[... ' + casper_basename(url) + ']' : url;
     }
 
     function casper_dump_shallow(object, title) {
@@ -92,6 +92,7 @@
     casper.on('resource.received', function (resource) {
         /// collect url into casper_image_resources, if contentType bodySize matches
         if (/^image\//.test(resource.contentType)) {
+	    this.echo('recource.received.image: ' + resource.url);
             if (typeof resource.bodySize == 'undefined' || resource.bodySize > config.minSize) {
                 casper_image_resources[resource.url] = resource.contentType;
             }
@@ -145,7 +146,7 @@
 		casper_dump_shallow(images, '=== end of scan ===');
 		for (url in images) {
 		    var info = images[url];
-		    casper_download_image(url, info.mimeType, info.hash, '1/');
+		    casper_download_image(url, info.mimeType, info.hash, './');
 		}
 	    });
 	}
