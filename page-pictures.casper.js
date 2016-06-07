@@ -92,7 +92,7 @@
     casper.on('resource.received', function (resource) {
         /// collect url into casper_image_resources, if contentType bodySize matches
         if (/^image\//.test(resource.contentType)) {
-	    this.echo('recource.received.image: ' + resource.url);
+	    //this.echo('recource.received.image: ' + resource.url);
             if (typeof resource.bodySize == 'undefined' || resource.bodySize > config.minSize) {
                 casper_image_resources[resource.url] = resource.contentType;
             }
