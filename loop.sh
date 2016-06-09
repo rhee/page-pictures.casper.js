@@ -1,5 +1,20 @@
-:
+#!/bin/sh
 shwordsplit >/dev/null 2>&1 || true
+
+fix_names(){(
+  no_dry_run=echo
+  if [ "--no-dry-run" = "$1" ]; then no_dry_run="sh -x -c"; shift; fi
+  for f in "$@"
+  do
+    if [ -f "$f" ]; then
+      md5=$( cat "$f" | md5sum -b - | awk '{print$1}' )
+      typ=$( identify "$f" | awk '{print$2}' | tr A-Z a-z )
+      n="$md5.$typ"
+      test "$f" -ef "$n" || $no_dry_run "mv -v '$f' '$md5.$typ'"
+    fi
+  done
+)}
+
 scan_url(){(
   url="$1";shift
   case "$url" in
@@ -13,6 +28,7 @@ scan_url(){(
       ;;
   esac
 )}
+
 if [ -z "$DISPLAY" ]; then
   while IFS= read url
   do scan_url "$url"
@@ -28,8 +44,9 @@ else
     if [ -z "$url" -o "$urlprev" = "$url" ]
     then sleep 2
     else
-      scan_url "$url"
       urlprev="$url"
+      scan_url "$url"
+      fix_names --no-dry-run *.jpeg *.png
     fi
   done
 fi
