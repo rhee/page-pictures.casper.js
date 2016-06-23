@@ -20,7 +20,12 @@ scan_url(){(
   case "$url" in
     http:*|https:*)
       echo "### URL: [$url] ###" 1>&2
-      page-pictures.casper.js "$url"
+      page-pictures.casper.js "$url" </dev/null
+      ;;
+    magnet:*)
+      surl=$(echo "$url" |cut -c1-40)
+      echo "### MAGNET: [$surl] ###"
+      transmission-remote -a "$url" </dev/null
       ;;
     *)
       echo "### No URL: [$url] ###" 1>&2
@@ -31,7 +36,10 @@ scan_url(){(
 
 if [ -z "$DISPLAY" ]; then
   while IFS= read url
-  do scan_url "$url"
+  do
+    scan_url "$url"
+    fix_names --no-dry-run *.jpg *.jpeg *.png
+    echo "### Listening..." 1>&2
   done
 else
   #XCLIPCMD="xclip -target text/plain -selection primary -display '$DISPLAY'"
@@ -46,7 +54,8 @@ else
     else
       urlprev="$url"
       scan_url "$url"
-      fix_names --no-dry-run *.jpeg *.png
+      fix_names --no-dry-run *.jpg *.jpeg *.png
+      echo "### Listening..." 1>&2
     fi
   done
 fi
