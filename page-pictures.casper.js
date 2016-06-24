@@ -1,5 +1,5 @@
 #!/bin/sh
-//bin/true; exec casperjs --engine=phantomjs --web-security=false --ignore-ssl-errors=true --verbose --log-level=info "$0" "$@"
+ //bin/true; exec casperjs --engine=phantomjs --web-security=false --ignore-ssl-errors=true --verbose --log-level=info "$0" "$@"
 //bin/true; exec casperjs --web-security=false --ignore-ssl-errors=true --verbose --log-level=info "$0" "$@"
 //bin/true; exec casperjs --web-security=false --ignore-ssl-errors=true --verbose --log-level=info --proxy=127.0.0.1:9050 --proxy-type=socks5 "$0" "$@"
 (function() {
@@ -131,12 +131,12 @@
 
         var url = arg_urls[i],
             is_youtube = url.match(re_youtube),
-	    is_image = url.match(re_image);
+            is_image = url.match(re_image);
 
-	if (is_image) {
+        if (is_image) {
             casper.echo('is_image: ' + url);
-	    casper_image_resources.push(url);
-	}
+            casper_image_resources.push(url);
+        }
 
         if (is_youtube) {
             casper.echo('is_youtube: ' + url);
@@ -161,9 +161,9 @@
             this.thenOpen(response.data);
             this.then(function() {
                 this.evaluate(function(resources, config) {
-		    if ( typeof window.collected_images === 'undefined' ) {
-			window.collected_images = {};
-		    }
+                    if (typeof window.collected_images === 'undefined') {
+                        window.collected_images = {};
+                    }
                     for (url in resources) {
                         ! function(url, mimeType) {
                             var img = new Image();
