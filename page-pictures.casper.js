@@ -1,5 +1,5 @@
 #!/bin/sh
- //bin/true; exec casperjs --engine=phantomjs --web-security=false --ignore-ssl-errors=true --verbose --log-level=info "$0" "$@"
+//bin/true; exec casperjs --engine=phantomjs --web-security=false --ignore-ssl-errors=true --verbose --log-level=info "$0" "$@"
 //bin/true; exec casperjs --web-security=false --ignore-ssl-errors=true --verbose --log-level=info "$0" "$@"
 //bin/true; exec casperjs --web-security=false --ignore-ssl-errors=true --verbose --log-level=info --proxy=127.0.0.1:9050 --proxy-type=socks5 "$0" "$@"
 (function() {
@@ -120,6 +120,7 @@
 
 
 
+    var re_image = /.*\.(jpg\|jpeg\|png\|tiff)/;
 
     //https://www.youtube.com/watch?v=ZIivpO9TnII
     //http://img.youtube.com/vi/<insert-youtube-video-id-here>/0.jpg
@@ -127,17 +128,27 @@
     var re_youtube = /(www\.)?youtube\.com\/watch\?v=(.+)/;
 
     for (i in arg_urls) {
+
         var url = arg_urls[i],
-            found = url.match(re_youtube);
-        if (found) {
-            casper.echo('youtube url found: ' + url);
+            is_youtube = url.match(re_youtube),
+	    is_image = url.match(re_image);
+
+	if (is_image) {
+            casper.echo('is_image: ' + url);
+	    casper_image_resources.push(url);
+	}
+
+        if (is_youtube) {
+            casper.echo('is_youtube: ' + url);
             // NOTE: img.youtube.com urls: 0.jpg 1.jpg 2.jpg 3.jpg default.jpg hqdefault.jpg mqdefault.jpg sddefault.jpg maxresdefault.jpg
             var image1 = 'http://img.youtube.com/vi/' + found[2] + '/hqdefault.jpg',
                 image2 = 'http://img.youtube.com/vi/' + found[2] + '/maxresdefault.jpg';
             casper_image_resources.push(image1)
             casper_image_resources.push(image2)
         }
+
         urls.push(url);
+
     }
 
 
@@ -150,7 +161,9 @@
             this.thenOpen(response.data);
             this.then(function() {
                 this.evaluate(function(resources, config) {
-                    window.collected_images = {};
+		    if ( typeof window.collected_images === 'undefined' ) {
+			window.collected_images = {};
+		    }
                     for (url in resources) {
                         ! function(url, mimeType) {
                             var img = new Image();
