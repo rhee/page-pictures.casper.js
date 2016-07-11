@@ -1,6 +1,9 @@
 #!/bin/sh
 shwordsplit >/dev/null 2>&1 || true
 
+PATH=/opt/nodejs/bin:$PATH
+export PATH
+
 fix_names(){(
   no_dry_run=echo
   if [ "--no-dry-run" = "$1" ]; then no_dry_run="sh -x -c"; shift; fi

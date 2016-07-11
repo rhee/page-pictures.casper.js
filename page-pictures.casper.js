@@ -1,5 +1,5 @@
 #!/bin/sh
- //bin/true; exec casperjs --engine=phantomjs --web-security=false --ignore-ssl-errors=true --verbose --log-level=info "$0" "$@"
+//bin/true; exec casperjs --engine=phantomjs --web-security=false --ignore-ssl-errors=true --verbose --log-level=info "$0" "$@"
 //bin/true; exec casperjs --web-security=false --ignore-ssl-errors=true --verbose --log-level=info "$0" "$@"
 //bin/true; exec casperjs --web-security=false --ignore-ssl-errors=true --verbose --log-level=info --proxy=127.0.0.1:9050 --proxy-type=socks5 "$0" "$@"
 (function() {
@@ -13,8 +13,8 @@
         //clientScripts: ['./spark-md5.js']
     });
 
-    var arg_urls = casper.cli.args.slice(0),
-        urls = [];
+    var args = casper.cli.args.slice(0),
+        urls = {}; // object type, to prevent duplicate urls
 
     var utils = require('utils');
 
@@ -29,28 +29,26 @@
         minPixels: 1920 * 1080,
     }
 
-    function casper_basename(path) {
-        var basename = path.split(/[?#]/).shift().split(/[\/]/).pop(); /* basename() */
+    // http://stackoverflow.com/a/1203361/496899
+    function sans_ext(fname) {
+        //return fname.lastIndexOf('.') > 0 ?
+    	//  fname.substr(0,filename.lastIndexOf('.')+1) :
+    	//  fname;
+	return fname.substr((~-fname.lastIndexOf(".") >>> 0) + 2);
+    }
+
+    function basename_sans_ext(path) {
+        var nodirname = path.split(/[?#]/).shift().split(/[\/]/).pop(), /* basename() */
+	    basename = sans_ext(nodirname);
         return basename;
     }
 
-    function casper_abbrev_url(url, limit) {
+    function abbrev_url(url, limit) {
         limit = limit || 100;
-        return (url.length > limit) ? '[... ' + casper_basename(url) + ']' : url;
+        return (url.length > limit) ? '[... ' + basename(url) + ']' : url;
     }
 
-    function casper_dump_shallow(object, title) {
-        casper.echo(title + ':');
-        for (var k in object) {
-            casper.echo('    ' + k + ': ' + JSON.stringify(object[k]));
-        }
-    }
-
-    function casper_dump_backtrace(msg, backtrace) {
-        casper_dump_shallow(backtrace, msg);
-    }
-
-    function casper_hash_string(str) {
+    function hash_string(str) {
         var hashCode = function(str) {
                 var hash = 0;
                 if (str.length == 0) return hash;
@@ -65,12 +63,26 @@
         return (num < 0 ? (0xFFFFFFFF + num + 1) : num).toString(16);
     }
 
-    function casper_download_image(src, mimeType, hash, outdir) {
+    //////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////
 
-        var basename = casper_basename(src),
+    function casper_dump_shallow(object, title) {
+
+        casper.echo(title + ':');
+        for (var k in object) {
+            casper.echo('    ' + k + ': ' + JSON.stringify(object[k]));
+        }
+
+    }
+
+    function casper_download_resource(src, mimeType, outdir) {
+
+	var outdir_ = outdir ? outdir.endsWith('/') ? outdir : outdir + '/' : './',
+	    base = basename_sans_ext(src),
             ext = mimeType.split(/\//).pop().toLowerCase(),
-            filename = (outdir ? outdir : '') + (hash ? hash : basename + '_' + casper_hash_string(src)) + '.' + ext;
-        casper.echo('casper_download_image: ' + casper_abbrev_url(src) + ' ' + filename);
+            filename = outdir_ + (base + '-' + hash_string(src)) + '.' + ext;
+        casper.echo('casper_download_resource: ' + abbrev_url(src) + ' ' + filename);
         try {
             casper.download(src, filename);
         } catch (e) {
@@ -83,117 +95,124 @@
     //////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////
 
-    var casper_image_resources = {};
+    var casper_target_resources = {}; // object type, to prevent duplicate urls
 
     casper.options.waitTimeout = config.timeout;
     casper.userAgent(config.agent);
 
     casper.on('remote.message', function(message) {
-        this.echo('message: ' + message)
+        this.echo('### remote.message: ' + message)
     });
 
     casper.on('error', function(msg, backtrace) {
-        casper_dump_backtrace(msg, backtrace)
+        casper_dump_shallow(backgrace, '### ' + msg)
     });
     casper.on('page.error', function(msg, backtrace) {
-        casper_dump_backtrace(msg, backtrace)
+        casper_dump_shallow(backtrace, '### ' + msg)
     });
     casper.on('complete.error', function(err) {
-        this.echo('complete.error: ' + JSON.stringify(err))
+        this.echo('### complete.error: ' + JSON.stringify(err))
     });
     casper.on('resource.error', function(resourceError) {
-        this.echo('resource.error: ' + resourceError.errorString + ' ' + casper_abbrev_url(resourceError.url, 50))
-    }); //{ casper_dump_shallow(resourceError,'resource.error'); });
+        casper_dump_shallow(resourceError, '### resource.error: ' + resourceError.errorString)
+    });
     casper.on('step.error', function(err) {
-        this.echo('step.error: ' + JSON.stringify(err));
+	this.echo('### step.error: '+err.sourceURL+':'+err.line)
+	this.echo('----------------------')
+	this.echo(err.stack)
+	this.echo('----------------------')
     });
 
     casper.on('resource.received', function(resource) {
-        /// collect url into casper_image_resources, if contentType bodySize matches
+        /// collect url into casper_target_resources, if contentType bodySize matches
         if (/^image\//.test(resource.contentType)) {
-            //this.echo('recource.received.image: ' + casper_abbrev_url(resource.url, 69));
+            //this.echo('recource.received.image: ' + abbrev_url(resource.url, 69));
             if (typeof resource.bodySize == 'undefined' || resource.bodySize > config.minSize) {
-                casper_image_resources[resource.url] = resource.contentType;
+                casper_target_resources[resource.url] = resource.url;
             }
         }
     });
 
-
-
     var re_image = /.*\.(jpg\|jpeg\|png\|tiff)/;
-
-    //https://www.youtube.com/watch?v=ZIivpO9TnII
-    //http://img.youtube.com/vi/<insert-youtube-video-id-here>/0.jpg
-    //var re_youtube = /https?::\/\/(www\.)?youtube.com\/watch\?v=(.+)/;
     var re_youtube = /(www\.)?youtube\.com\/watch\?v=(.+)/;
 
-    for (i in arg_urls) {
+    for (i in args) {
 
-        var url = arg_urls[i],
+        var url = args[i],
             is_youtube = url.match(re_youtube),
             is_image = url.match(re_image);
 
         if (is_image) {
-            casper.echo('is_image: ' + url);
-            casper_image_resources.push(url);
+            casper.echo('### is_image: ' + url);
+            casper_target_resources[url] = url;
         }
 
         if (is_youtube) {
-            casper.echo('is_youtube: ' + url);
+            casper.echo('### is_youtube: ' + url);
             // NOTE: img.youtube.com urls: 0.jpg 1.jpg 2.jpg 3.jpg default.jpg hqdefault.jpg mqdefault.jpg sddefault.jpg maxresdefault.jpg
             var image1 = 'http://img.youtube.com/vi/' + found[2] + '/hqdefault.jpg',
                 image2 = 'http://img.youtube.com/vi/' + found[2] + '/maxresdefault.jpg';
-            casper_image_resources.push(image1)
-            casper_image_resources.push(image2)
+            casper_target_resources[image1] = image1
+            casper_target_resources[image2] = image2
         }
 
-        urls.push(url);
+	urls[url] = url;
 
     }
 
 
 
-    casper.start().eachThen(urls, function(response) {
+    casper.start().eachThen(Object.keys(urls), function(response) {
 
         if (!response.data) {
-            this.echo('=== skip empty url===');
+            this.echo('### skip empty url');
         } else {
             this.thenOpen(response.data);
             this.then(function() {
-                this.evaluate(function(resources, config) {
-                    if (typeof window.collected_images === 'undefined') {
-                        window.collected_images = {};
-                    }
-                    for (url in resources) {
-                        ! function(url, mimeType) {
-                            var img = new Image();
-                            img.onLoad = function() {
-                                var hash;
-                                if (img.width >= config.minWidth &&
-                                    img.height >= config.minHeight &&
-                                    img.width * img.height >= config.minPixels) {
-                                    window.collected_images[url] = {
-                                        mimeType: mimeType,
-                                        hash: hash
-                                    };
+                this.evaluate(
+                    function(resources, config) {
+                        if (typeof window.collected_resources === 'undefined') {
+                            window.collected_resources = {};
+                        }
+                        for (url in resources) {
+                            ! function(url, mimeType) {
+                                var img = new Image();
+                                img.onLoad = function() {
+                                    if (img.width >= config.minWidth &&
+                                        img.height >= config.minHeight &&
+                                        img.width * img.height >= config.minPixels) {
+                                        window.collected_resources[url] = {
+                                            mimeType: mimeType,
+                                            url: url
+                                        };
+                                    }
                                 }
+                                img.src = url;
+                                if (img.complete || img.readyState === 4) {
+                                    img.onLoad();
+                                }
+                            }(url, resources[url]);
+                        }
+                        console.log('=== end of page ===: found ' + Object.keys(window.collected_resources).length);
+                    },
+                    casper_target_resources,
+                    config);
+                while (true) {
+                    var info = this.evaluate(
+                        function() {
+                            if (window.collected_resources) {
+                                var url = Object.keys(window.collected_resources).shift(),
+                                    info = window.collected_resources[url];
+                                delete window.collected_resources[url];
+                                return info
                             }
-                            img.src = url;
-                            if (img.complete || img.readyState === 4) {
-                                img.onLoad();
-                            }
-                        }(url, resources[url]);
+                            return nil
+                        }
+                    );
+                    if (!info) {
+                        break;
                     }
-                }, casper_image_resources, config);
-            });
-            this.then(function() {
-                var images = this.evaluate(function() {
-                    return window.collected_images
-                });
-                casper_dump_shallow(images, '=== end of scan ===: found ' + images.length);
-                for (url in images) {
-                    var info = images[url];
-                    casper_download_image(url, info.mimeType, info.hash, './');
+                    casper_download_resource(info.url, info.mimeType, './')
                 }
             });
         }
