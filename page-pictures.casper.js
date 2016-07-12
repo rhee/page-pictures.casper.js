@@ -109,7 +109,6 @@ casper.userAgent(config.agent);
 
 var messages = [
     'page.error',
-    'resource.error',
     'complete.error',
     'step.error',
     'load.failed',
@@ -142,10 +141,26 @@ casper.on('resource.received', function(resource) {
     }
 });
 
+### resource.error
+{
+  "0": {
+    "errorCode": 5,
+    "errorString": "Operation canceled",
+    "id": 932,
+    "status": null,
+    "statusText": null,
+    "url": "http://darkmarin.com/plugin/kcaptcha/kcaptcha_image.php?t=1468313952021"
+  }
+}
+
+casper.on('resource.error', function(resourceError) {
+    this.echo('[resource.error] ' + resourceError.errorCode + ', ' + errorString, 'ERROR');
+    this.echo('url=' + resourceError.url, 'ERROR');
+})
+
 casper.on('error', function(msg,backtrace) {
-    var my = this;
-    my.echo('[error] '+msg, 'ERROR');
-    my.echo(JSON.stringify(backtrace, null, '  '));
+    this.echo('[error] '+msg, 'ERROR');
+    this.echo(JSON.stringify(backtrace, null, '  '));
 });
 
 var re_image = /.*\.(jpg\|jpeg\|png\|tiff)/;
