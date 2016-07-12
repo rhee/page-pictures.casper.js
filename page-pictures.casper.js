@@ -56,7 +56,7 @@ function uri_basename(path) {
 
 function abbrev_url(url, limit) {
     limit = limit || 100;
-    return (url.length > limit) ? '[... ' + basename(url) + ']' : url;
+    return (url.length > limit) ? '[... ' + uri_basename(url) + ']' : url;
 }
 
 function hash_string(str) {
@@ -88,7 +88,7 @@ function casper_download_resource(src, mimeType, outdir) {
     hash = hash_string(src),
     filename = outdir_ + (sans_ext + '--' + hash) + '.' + new_ext;
 
-    casper.echo('casper_download_resource: ' + abbrev_url(src) + ', ' + mimeType + ', ' + outdir, 'INFO');
+    casper.echo('casper_download_resource: ' + mimeType + ' ' + abbrev_url(src) + ' ==> ' + filename, 'INFO');
 
     try {
 	casper.download(src, filename);
@@ -128,7 +128,7 @@ for ( var i in messages ) {
 }
 
 casper.on('remote.message', function(message) {
-  this.echo('[console.log] ' + message)
+  this.echo('[console.log] ' + message, 'INFO')
 });
 
 casper.on('resource.received', function(resource) {
@@ -140,18 +140,6 @@ casper.on('resource.received', function(resource) {
 	}
     }
 });
-
-### resource.error
-{
-  "0": {
-    "errorCode": 5,
-    "errorString": "Operation canceled",
-    "id": 932,
-    "status": null,
-    "statusText": null,
-    "url": "http://darkmarin.com/plugin/kcaptcha/kcaptcha_image.php?t=1468313952021"
-  }
-}
 
 casper.on('resource.error', function(resourceError) {
     this.echo('[resource.error] ' + resourceError.errorCode + ', ' + errorString, 'ERROR');
