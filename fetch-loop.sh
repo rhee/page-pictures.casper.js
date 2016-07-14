@@ -4,6 +4,8 @@ shwordsplit >/dev/null 2>&1 || true
 PATH=/opt/nodejs/bin:$PATH
 export PATH
 
+dir="$(dirname "$(realpath "$0")")"
+
 fix_names(){(
   no_dry_run=echo
   if [ "--no-dry-run" = "$1" ]; then no_dry_run="sh -x -c"; shift; fi
@@ -23,7 +25,7 @@ scan_url(){(
   case "$url" in
     http:*|https:*)
       echo "### URL: [$url] ###" 1>&2
-      page-pictures.casper.js "$url" </dev/null
+      $dir/page-pictures.casper.js "$url" </dev/null
       ;;
     magnet:*)
       surl=$(echo "$url" |cut -c1-40)
