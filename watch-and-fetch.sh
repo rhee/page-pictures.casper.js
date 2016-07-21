@@ -43,7 +43,7 @@ if [ -z "$DISPLAY" ]; then
   while IFS= read url
   do
     scan_url "$url"
-    fix_names --no-dry-run *.jpg *.jpeg *.png
+    fix_names --no-dry-run ./*.jpg ./*.jpeg ./*.png
     echo "### Listening..." 1>&2
   done
 else
@@ -59,7 +59,7 @@ else
     else
       urlprev="$url"
       scan_url "$url"
-      fix_names --no-dry-run *.jpg *.jpeg *.png
+      fix_names --no-dry-run ./*.jpg ./*.jpeg ./*.png
       echo "### Listening..." 1>&2
     fi
   done

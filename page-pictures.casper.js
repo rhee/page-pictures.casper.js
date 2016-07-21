@@ -74,6 +74,16 @@ function hash_string(str) {
     return (num < 0 ? (0xFFFFFFFF + num + 1) : num).toString(16);
 }
 
+// create dummy html for images
+function build_dummy_uri(image_list){
+    var html = '<body>';
+    for (var i in image_list) {
+	var image = image_list[i];
+	html = html + '<img src="'+image+'"></img>';
+    }
+    return 'data:text/html, '+encodeURI(html)
+}
+
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
@@ -151,7 +161,7 @@ casper.on('error', function(msg,backtrace) {
     this.echo(JSON.stringify(backtrace, null, '  '));
 });
 
-var re_image = /.*\.(jpg\|jpeg\|png\|tiff)/;
+var re_image = /.*\.(jpg|jpeg|png|tiff)$/;
 var re_youtube = /(www\.)?youtube\.com\/watch\?v=(.+)/;
 
 for (i in args) {
@@ -163,6 +173,9 @@ for (i in args) {
     if (is_image) {
 	casper.echo('### is_image: ' + url);
 	casper_target_resources[url] = filename_ext(url);
+	url = build_dummy_uri([url]);
+	urls[url] = url;
+	continue
     }
 
     if (is_youtube) {
@@ -172,8 +185,13 @@ for (i in args) {
 	image2 = 'http://img.youtube.com/vi/' + found[2] + '/maxresdefault.jpg';
 	casper_target_resources[image1] = 'image/jpeg';
 	casper_target_resources[image2] = 'image/jpeg';
+	url = build_dummy_uri([image1, image2]);
+	urls[url] = url;
+	continue
     }
 
+    casper.echo('### url: ' + url);
+	
     urls[url] = url;
 
 }
