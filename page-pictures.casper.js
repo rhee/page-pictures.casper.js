@@ -9,6 +9,14 @@ casper = require('casper').create({
 	webSecurityEnabled: false
     },
     //clientScripts: ['./spark-md5.js']
+    onPageInitialized: function (page) {
+        page.evaluate(function () {
+	   window.screen = {
+	       width: 1920,
+	       height: 1080
+	   };
+	});
+    }
 }),
 utils = require('utils');
 
