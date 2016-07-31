@@ -6,7 +6,8 @@ shwordsplit >/dev/null 2>&1 || true
 PATH=/opt/nodejs/bin:$PATH
 export PATH
 
-dir="$(dirname "$(realpath "$0")")"
+#dir="$(dirname "$(realpath "$0")")"
+dir="$(cd "$(dirname "$0")"; pwd -P)"
 
 if md5 -s x >/dev/null 2>&1; then
     get_md5(){(
