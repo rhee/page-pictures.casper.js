@@ -1,7 +1,7 @@
 #!/bin/sh
-//bin/true; exec casperjs --engine=phantomjs --web-security=false --ignore-ssl-errors=true --verbose --log-level=info "$0" "$@"
-//bin/true; exec casperjs --web-security=false --ignore-ssl-errors=true --verbose --log-level=info "$0" "$@"
-//bin/true; exec casperjs --web-security=false --ignore-ssl-errors=true --verbose --log-level=info --proxy=127.0.0.1:9050 --proxy-type=socks5 "$0" "$@"
+//bin/true 2>/dev/null; exec casperjs --engine=phantomjs --web-security=false --ignore-ssl-errors=true --verbose --log-level=info "$0" "$@"
+//bin/true 2>/dev/null; exec casperjs --web-security=false --ignore-ssl-errors=true --verbose --log-level=info "$0" "$@"
+//bin/true 2>/dev/null; exec casperjs --web-security=false --ignore-ssl-errors=true --verbose --log-level=info --proxy=127.0.0.1:9050 --proxy-type=socks5 "$0" "$@"
 
 var
 casper = require('casper').create({
@@ -174,11 +174,9 @@ var re_youtube = /(www\.)?youtube\.com\/watch\?v=(.+)/;
 
 for (i in args) {
 
-    var url = args[i],
-    is_youtube = url.match(re_youtube),
-    is_image = url.match(re_image);
+    var url = args[i];
 
-    if (is_image) {
+    if (url.match(re_image)) {
 	casper.echo('### is_image: ' + url);
 	casper_target_resources[url] = filename_ext(url);
 	url = build_dummy_uri([url]);
@@ -186,7 +184,7 @@ for (i in args) {
 	continue
     }
 
-    if (is_youtube) {
+    if (url.match(re_youtube)) {
 	casper.echo('### is_youtube: ' + url);
 	// NOTE: img.youtube.com urls: 0.jpg 1.jpg 2.jpg 3.jpg default.jpg hqdefault.jpg mqdefault.jpg sddefault.jpg maxresdefault.jpg
 	var image1 = 'http://img.youtube.com/vi/' + found[2] + '/hqdefault.jpg',
