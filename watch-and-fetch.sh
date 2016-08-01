@@ -9,21 +9,18 @@ export PATH
 #dir="$(dirname "$(realpath "$0")")"
 dir="$(cd "$(dirname "$0")"; pwd -P)"
 
-if md5 -s x >/dev/null 2>&1; then
-    get_md5(){(
-	f="$1"
-	md5 -q "$f"
-    )}
+if openssl --help >/dev/null 2>&1; then
+    _getmd5(){
+        openssl md5
+    }
 elif md5sum --help >/dev/null 2>&1; then
-    get_md5(){(
-	f="$1"
-        cat "$f" | md5sum -b - | awk '{print$1}'
-    )}
-elif openssl --help >/dev/null 2>&1; then
-    get_md5(){(
-	f="$1"
-        cat "$f" | openssl md5
-    )}
+    _getmd5(){
+        md5sum -b - | awk '{print$1}'
+    }
+elif md5 -s x >/dev/null 2>&1; then
+    _getmd5(){
+	md5 -q -
+    }
 else
     echo "md5 utility not found" 1>&2
     exit 1
@@ -35,13 +32,15 @@ fix_names(){(
   for f in "$@"
   do
     if [ -f "$f" ]; then
-      md5=$(get_md5 "$f")
+      md5=$(cat "$f" | _getmd5)
       typ=$(identify "$f" | awk '{print$2}' | tr A-Z a-z)
       n="$md5.$typ"
-      if [ -f "$n" ]; then
-	$no_dry_run "rm -fv '$f'"
-      else
-        test "$f" -ef "$n" || $no_dry_run "mv -v '$f' '$n'"
+      if [ ! "$f" -ef "$n" ]; then
+	if test -f "$n"; then
+	  $no_dry_run "rm -fv '$f'"
+	else
+	  $no_dry_run "mv -v '$f' '$n'"
+	fi
       fi
     fi
   done
