@@ -72,7 +72,7 @@ if pbpaste -help 2>/dev/null; then
       echo "$(pbpaste)"
     }
 else
-    if [ ! -z "$DISPLAY" ]; then
+    if [ -z "$DISPLAY" ]; then
 	_peek(){
 	  IFS= read url
 	  echo $url
