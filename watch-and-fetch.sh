@@ -87,12 +87,14 @@ fi
 while :
 do
   url=$(_peek)
-  if [ -z "$url" -o "$urlprev" = "$url" ]
-  then sleep 2
-  else
-    urlprev="$url"
-    scan_url "$url"
-    fix_names --no-dry-run ./*.jpg ./*.jpeg ./*.png
-    echo "### Listening..." 1>&2
-  fi
+  test "$urlprev" = "$url" && url=
+  case "$url" in
+    http://*|https://*|magnet:*)
+      urlprev="$url"
+      scan_url "$url"
+      fix_names --no-dry-run ./*.jpg ./*.jpeg ./*.png
+      echo "### Listening..." 1>&2 ;;
+    *)
+      sleep 2 ;;
+    esac
 done
