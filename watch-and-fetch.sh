@@ -3,25 +3,18 @@
 PATH=/opt/nodejs/bin:$PATH
 export PATH
 
-#dir="$(dirname "$(realpath "$0")")"
-dir="$(cd "$(dirname "$0")"; pwd -P)"
-
-if openssl --help >/dev/null 2>&1; then
-    _getmd5(){
-        openssl md5
-    }
-elif md5sum --help >/dev/null 2>&1; then
-    _getmd5(){
-        md5sum -b - | awk '{print$1}'
-    }
-elif md5 -s x >/dev/null 2>&1; then
-    _getmd5(){
-	md5 -q -
-    }
-else
-    echo "md5 utility not found" 1>&2
+if ! node -v >/dev/null 2>&1; then
+    echo "node.js found" 1>&2
     exit 1
 fi
+
+if ! openssl --help >/dev/null 2>&1; then
+    echo "openssl not found" 1>&2
+    exit 1
+fi
+
+#dir="$(dirname "$(realpath "$0")")"
+dir="$(cd "$(dirname "$(which "$0")")"; pwd -P)"
 
 fix_names(){(
 
@@ -33,7 +26,7 @@ fix_names(){(
   for f in "$@"
   do
     if [ -f "$f" ]; then
-      md5=$(cat "$f" | _getmd5)
+      md5=$(openssl md5 "$f" | awk '{print$2}')
       typ=$(identify "$f" | awk '{print$2}' | tr A-Z a-z)
       n="$md5.$typ"
       if [ ! "$f" -ef "$n" ]; then
@@ -72,14 +65,14 @@ if pbpaste -help 2>/dev/null; then
       echo "$(pbpaste)"
     }
 else
-    if [ ! -z "$DISPLAY" ]; then
+    if [ -z "$DISPLAY" ]; then
 	_peek(){
 	  IFS= read url
 	  echo $url
 	}
     else
 	_peek(){
-          echo "$(xclip -target STRING -selection primary)" # 왠지모르지만 url 은 STRING ( default )
+          echo "$(xclip -out -target STRING -selection primary </dev/null)" # 왠지모르지만 url 은 STRING ( default )
         }
     fi
 fi
