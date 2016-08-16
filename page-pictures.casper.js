@@ -174,7 +174,7 @@ var re_youtube = /(www\.)?youtube\.com\/watch\?v=(.+)/;
 
 for (i in args) {
 
-    var url = args[i];
+    var url = args[i], found;
 
     if (url.match(re_image)) {
 	casper.echo('### is_image: ' + url);
@@ -184,7 +184,7 @@ for (i in args) {
 	continue
     }
 
-    if (url.match(re_youtube)) {
+    if (found = url.match(re_youtube)) {
 	casper.echo('### is_youtube: ' + url);
 	// NOTE: img.youtube.com urls: 0.jpg 1.jpg 2.jpg 3.jpg default.jpg hqdefault.jpg mqdefault.jpg sddefault.jpg maxresdefault.jpg
 	var image1 = 'http://img.youtube.com/vi/' + found[2] + '/hqdefault.jpg',

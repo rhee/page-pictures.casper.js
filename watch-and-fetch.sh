@@ -1,8 +1,5 @@
 #!/bin/sh
 
-shopt -s nullglob >/dev/null 2>&1 || true
-shwordsplit >/dev/null 2>&1 || true
-
 PATH=/opt/nodejs/bin:$PATH
 export PATH
 
@@ -27,6 +24,10 @@ else
 fi
 
 fix_names(){(
+
+  shopt -s nullglob >/dev/null 2>&1 || true
+  shwordsplit >/dev/null 2>&1 || true
+
   no_dry_run=echo
   if [ "--no-dry-run" = "$1" ]; then no_dry_run="sh -x -c"; shift; fi
   for f in "$@"
