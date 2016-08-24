@@ -72,7 +72,7 @@ else
 	}
     else
 	_peek(){
-          echo "$(xclip -out -target STRING -selection primary </dev/null)" # 왠지모르지만 url 은 STRING ( default )
+          echo "$(xclip -out -target STRING -selection primary </dev/null 2>/dev/null)" # 왠지모르지만 url 은 STRING ( default )
         }
     fi
 fi

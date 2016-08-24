@@ -1,7 +1,6 @@
 #!/bin/sh
 //bin/true 2>/dev/null; exec casperjs --engine=phantomjs --web-security=false --ignore-ssl-errors=true --verbose --log-level=info "$0" "$@"
-//bin/true 2>/dev/null; exec casperjs --web-security=false --ignore-ssl-errors=true --verbose --log-level=info "$0" "$@"
-//bin/true 2>/dev/null; exec casperjs --web-security=false --ignore-ssl-errors=true --verbose --log-level=info --proxy=127.0.0.1:9050 --proxy-type=socks5 "$0" "$@"
+//bin/true 2>/dev/null; exec casperjs                    --web-security=false --ignore-ssl-errors=true --verbose --log-level=info --proxy=127.0.0.1:9050 --proxy-type=socks5 "$0" "$@"
 
 var
 casper = require('casper').create({
