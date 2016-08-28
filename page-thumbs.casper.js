@@ -8,10 +8,10 @@ config = {
     minSize: 170000,
     windowWidth: 1920,
     windowHeight: 1080,
-    minWidth: 1080,
-    minHeight: 1080,
-    minPixels: 1920 * 1080
-    maxScroll: 0,
+    minWidth: 192,
+    minHeight: 192,
+    minPixels: 192 * 192,
+    maxScroll: 20,
 },
 casper = require('casper').create({
     pageSettings: {
