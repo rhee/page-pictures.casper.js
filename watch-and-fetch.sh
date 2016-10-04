@@ -4,7 +4,7 @@ PATH=/opt/nodejs/bin:$PATH
 export PATH
 
 if ! node -v >/dev/null 2>&1; then
-    echo "node.js found" 1>&2
+    echo "node.js not found" 1>&2
     exit 1
 fi
 
