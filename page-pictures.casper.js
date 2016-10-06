@@ -1,5 +1,5 @@
 #!/bin/sh
-//bin/true 2>/dev/null; exec casperjs              --web-security=false --ignore-ssl-errors=true --verbose --log-level=info "$0" "$@"
+ //bin/true 2>/dev/null; exec casperjs              --web-security=false --ignore-ssl-errors=true --verbose --log-level=info "$0" "$@"
 //bin/true 2>/dev/null; exec casperjs --debug=true --web-security=false --ignore-ssl-errors=true --verbose --log-level=info "$0" "$@"
 
 var
@@ -15,8 +15,8 @@ var
         maxScroll: 0,
     },
     casper = require('casper').create({
-	verbose: true,
-	logLevel: "info",
+        verbose: true,
+        logLevel: "info",
         pageSettings: {
             webSecurityEnabled: false
         },
@@ -25,47 +25,15 @@ var
     fs = require('fs'),
     args_urls = {},
     casper_received_urls = {};
-    
+
+var re_image = /.*\.(jpg|jpeg|png|tiff)$/;
+var re_youtube = /(www\.)?youtube\.com\/watch\?v=(.+)/;
+
+var url_passed = {};
 
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
-
-// create dummy html for images
-function build_dummy_uri(image_list) {
-    var html = '<body>';
-    for (var i in image_list) {
-        var image = image_list[i];
-        html = html + '<img src="' + image + '"></img>';
-    }
-    return 'data:text/html, ' + encodeURI(html);
-}
-
-// format number
-function pad(n, width, z) {
-    z = z || '0';
-    n = n + '';
-    return n.length >= width ? n : new Array(width - n.length + 1).join(z) + n;
-}
-
-var last_file_number = 1;
-
-function make_filename(mimeType) {
-    var ext, filename;
-    ext = mimeType.split(/\//).pop().toLowerCase();
-    if (0 === mimeType.indexOf('image/jpeg')) {
-        ext = 'jpg';
-    }
-    do {
-        last_file_number += 1;
-        filename = pad(last_file_number, 8) + '.' + ext;
-    } while (fs.exists(filename));
-    return filename;
-}
-
-//////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////
 
 casper.options.waitTimeout = config.timeout;
 casper.userAgent(config.agent);
@@ -90,18 +58,22 @@ for (var i = 0; i < messages.length; i++) {
 }
 
 casper.on('remote.message', function(message) {
-    this.echo('[console.log] ' + message, 'INFO');
+    this.echo(message, 'INFO');
 });
 
 casper.on('page.initialized', function(page) {
     page.evaluate(
-        function(config) {
+        function(config, page) {
             window.screen = {
                 width: config.windowWidth,
                 height: config.windowHeight
             };
+            console.info([
+                ['page.initialized'], config.windowWidth, config.windowHeight, page.url
+            ]);
         },
-        config);
+        config,
+        page);
 });
 
 casper.on('resource.received', function(resource) {
@@ -111,7 +83,7 @@ casper.on('resource.received', function(resource) {
     /// collect url into casper_target_resources, if contentType bodySize matches
     if (/^image\//.test(contentType)) {
         if (typeof bodySize == 'undefined' || bodySize > config.minSize) {
-            casper_received_urls[url] = contentType;
+            casper_received_urls[url] = resource;
         }
     }
 });
@@ -130,6 +102,8 @@ casper.on('error', function(msg, backtrace) {
 //////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
 
+var last_file_number = 1;
+
 function download_resource(src, mimeType) {
     var filename = make_filename(mimeType);
     casper.echo('download_resource: ' + mimeType + ' ' + filename, 'INFO');
@@ -138,9 +112,31 @@ function download_resource(src, mimeType) {
     } catch (e) {
         casper.echo('### download_resource failed: ' + e, 'ERROR');
     }
+
+    function make_filename(mimeType) {
+        var ext, filename;
+        ext = mimeType.split(/\//).pop().toLowerCase();
+        if (0 === mimeType.indexOf('image/jpeg')) {
+            ext = 'jpg';
+        }
+        do {
+            last_file_number += 1;
+            filename = pad(last_file_number, 8) + '.' + ext;
+        } while (fs.exists(filename));
+        return filename;
+
+    }
+
+    // format number
+    function pad(n, width, z) {
+        z = z || '0';
+        n = n + '';
+        return n.length >= width ? n : new Array(width - n.length + 1).join(z) + n;
+    }
+
 }
 
-function handle_page() {
+function handle_page(casper) {
     var
         i,
         next_y,
@@ -148,18 +144,12 @@ function handle_page() {
         cy_incr = config.windowHeight * 8 / 10 | 0;
 
     function collect_resources(resources, config) {
-        function check_image_size(img, config) {
-            if (config.minHeight && img.height && img.height < config.minHeight) return false;
-            if (config.minWidth && img.width && img.width < config.minWidth) return false;
-            if (config.minPixels && img.width && img.height && img.width * img.height < config.minPixels) return false;
-            return true;
-        }
         if (typeof window.collected_resources === 'undefined') window.collected_resources = {};
-	var list = Object.keys(resources);
-	for (var i = 0; i < list.length; i++) {
-	    var url = list[i],
-		mimeType = resources[url],
-		img = new Image();
+        var list = Object.keys(resources);
+        for (var i = 0; i < list.length; i++) {
+            var url = list[i],
+                mimeType = resources[url].contentType,
+                img = new Image();
             img.onLoad = function() {
                 if (check_image_size(img, config)) {
                     window.collected_resources[url] = {
@@ -172,25 +162,38 @@ function handle_page() {
             if (img.complete || img.readyState === 4) {
                 img.onLoad();
             }
-	}
+        }
         console.log('=== scroll ===: found ' + Object.keys(window.collected_resources).length);
         return window.collected_resources;
+
+        function check_image_size(img, config) {
+            if (config.minHeight && img.height && img.height < config.minHeight) return false;
+            if (config.minWidth && img.width && img.width < config.minWidth) return false;
+            if (config.minPixels && img.width && img.height && img.width * img.height < config.minPixels) return false;
+            return true;
+        }
     }
 
     next_y = 0;
 
-    this.wait(7500, function() { this.evaluate(collect_resources, casper_received_urls, config); });
+    casper.wait(7500);
+    casper.then(function() {
+        this.evaluate(collect_resources, casper_received_urls, config);
+    });
 
     for (i = 0; i < config.maxScroll; i++) {
-        this.then(function() {
+        casper.then(function() {
             next_y += cy_incr;
             this.echo('===== scrollTo: ' + cx + ',' + next_y);
             this.scrollTo(cx, next_y);
         });
-        this.wait(5000, function() { this.evaluate(collect_resources, casper_received_urls, config); });
+        casper.wait(5000);
+        casper.then(function() {
+            this.evaluate(collect_resources, casper_received_urls, config);
+        });
     }
 
-    this.then(function() {
+    casper.then(function() {
         var resources = this.evaluate(function() {
                 return window.collected_resources;
             }),
@@ -207,13 +210,11 @@ function handle_page() {
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 
-var re_image = /.*\.(jpg|jpeg|png|tiff)$/;
-var re_youtube = /(www\.)?youtube\.com\/watch\?v=(.+)/;
-
 var args = casper.cli.args.slice(0);
+
 for (var i = 0; i < args.length; i++) {
     var url = args[i],
-	found;
+        found;
 
     if (url.match(re_image)) {
         casper.echo('### is_image: ' + url);
@@ -249,7 +250,7 @@ casper.start().eachThen(Object.keys(args_urls), function(response) {
         return;
     }
     this.thenOpen(response.data);
-    this.then(handle_page.bind(this));
+    handle_page(this);
 });
 
 casper.run();
