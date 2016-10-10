@@ -136,12 +136,46 @@ function download_resource(src, mimeType) {
 
 }
 
-function handle_page(casper) {
+function handle_page(casper, url) {
     var
         i,
         next_y,
         cx = config.windowWidth / 2 | 0,
         cy_incr = config.windowHeight * 8 / 10 | 0;
+
+    next_y = 0;
+
+    casper.thenOpen(url);
+    casper.wait(7500);
+    casper.then(function() {
+        this.evaluate(collect_resources, casper_received_urls, config);
+    });
+
+    for (i = 0; i < config.maxScroll; i++) {
+        casper.then(function() {
+            next_y += cy_incr;
+            this.echo('===== scrollTo: ' + cx + ',' + next_y);
+            this.scrollTo(cx, next_y);
+        });
+        casper.wait(5000);
+        casper.then(function() {
+            this.evaluate(collect_resources, casper_received_urls, config);
+        });
+    }
+
+    casper.then(function() {
+        var resources = this.evaluate(function() {
+                return window.collected_resources;
+            }),
+            urls = Object.keys(resources);
+        for (var i = 0; i < urls.length; i++) {
+            download_resource(
+                urls[i],
+                resources[urls[i]].mimeType);
+        }
+    });
+
+    return;
 
     function collect_resources(resources, config) {
         if (typeof window.collected_resources === 'undefined') window.collected_resources = {};
@@ -174,36 +208,6 @@ function handle_page(casper) {
         }
     }
 
-    next_y = 0;
-
-    casper.wait(7500);
-    casper.then(function() {
-        this.evaluate(collect_resources, casper_received_urls, config);
-    });
-
-    for (i = 0; i < config.maxScroll; i++) {
-        casper.then(function() {
-            next_y += cy_incr;
-            this.echo('===== scrollTo: ' + cx + ',' + next_y);
-            this.scrollTo(cx, next_y);
-        });
-        casper.wait(5000);
-        casper.then(function() {
-            this.evaluate(collect_resources, casper_received_urls, config);
-        });
-    }
-
-    casper.then(function() {
-        var resources = this.evaluate(function() {
-                return window.collected_resources;
-            }),
-            urls = Object.keys(resources);
-        for (var i = 0; i < urls.length; i++) {
-            download_resource(
-                urls[i],
-                resources[urls[i]].mimeType);
-        }
-    });
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -249,8 +253,7 @@ casper.start().eachThen(Object.keys(args_urls), function(response) {
         this.echo('### skip empty url');
         return;
     }
-    this.thenOpen(response.data);
-    handle_page(this);
+    handle_page(this, response.data);
 });
 
 casper.run();
