@@ -8,7 +8,7 @@ var
         timeout: 60000,
         minSize: 75000,
         windowWidth: 1920,
-        windowHeight: 1080,
+        windowHeight: 4320, //1080,
         minWidth: 1080,
         minHeight: 1080,
         minPixels: 1920 * 1080,
@@ -106,7 +106,7 @@ var last_file_number = 1;
 
 function download_resource(src, mimeType) {
     var filename = make_filename(mimeType);
-    casper.echo('download_resource: ' + mimeType + ' ' + filename, 'INFO');
+    casper.echo('=== [download_resource]: ' + mimeType + ' ' + filename, 'INFO');
     try {
         casper.download(src, filename);
     } catch (e) {
@@ -141,41 +141,45 @@ function handle_page(casper, url) {
         i,
         next_y,
         cx = config.windowWidth / 2 | 0,
-        cy_incr = config.windowHeight * 8 / 10 | 0;
+        cy_incr = config.windowHeight * 99 / 100 | 0;
 
     next_y = 0;
 
-    casper.thenOpen(url);
-    casper.wait(7500);
-    casper.then(function() {
-        this.evaluate(collect_resources, casper_received_urls, config);
-    });
-
-    for (i = 0; i < config.maxScroll; i++) {
-        casper.then(function() {
-            next_y += cy_incr;
-            this.echo('===== scrollTo: ' + cx + ',' + next_y);
-            this.scrollTo(cx, next_y);
+    casper.thenOpen(url)
+        .viewport(config.windowWidth, config.windowHeight)
+        .then(function() {
+            handle_page_continue(this)
         });
-        casper.wait(5000);
-        casper.then(function() {
-            this.evaluate(collect_resources, casper_received_urls, config);
-        });
-    }
-
-    casper.then(function() {
-        var resources = this.evaluate(function() {
-                return window.collected_resources;
-            }),
-            urls = Object.keys(resources);
-        for (var i = 0; i < urls.length; i++) {
-            download_resource(
-                urls[i],
-                resources[urls[i]].mimeType);
-        }
-    });
 
     return;
+
+    function handle_page_continue(casper) {
+        casper.wait(5000)
+            .then(function() {
+                this.evaluate(collect_resources, casper_received_urls, config);
+                var page_height = this.evaluate(function() {
+                    return document.body.scrollHeight;
+                });
+                if (next_y + config.windowHeight >= page_height) { // done?
+                    var resources = casper.evaluate(function() {
+                            return window.collected_resources;
+                        }),
+                        urls = Object.keys(resources);
+                    for (var i = 0; i < urls.length; i++) {
+                        download_resource(
+                            urls[i],
+                            resources[urls[i]].mimeType);
+                    }
+                    return;
+                }
+                next_y += cy_incr;
+                this.echo('===== scrollTo: ' + cx + ',' + next_y + '/' + page_height);
+                this.scrollTo(cx, next_y)
+                    .then(function() {
+                        handle_page_continue(this)
+                    })
+            })
+    }
 
     function collect_resources(resources, config) {
         if (typeof window.collected_resources === 'undefined') window.collected_resources = {};
@@ -213,6 +217,16 @@ function handle_page(casper, url) {
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
+
+// create dummy html for images
+function build_dummy_uri(image_list) {
+    var html = '<body>';
+    for (var i in image_list) {
+        var image = image_list[i];
+        html = html + '<img src="' + image + '"></img>';
+    }
+    return 'data:text/html, ' + encodeURI(html)
+}
 
 var args = casper.cli.args.slice(0);
 
