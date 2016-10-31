@@ -13,8 +13,8 @@ if ! openssl --help >/dev/null 2>&1; then
     exit 1
 fi
 
-#dir="$(dirname "$(realpath "$0")")"
-dir="$(cd "$(dirname "$(which "$0")")"; pwd -P)"
+dir="$(dirname "$(realpath "$0")")"
+#dir="$(cd "$(dirname "$(which "$0")")"; pwd -P)"
 
 fix_names(){(
 
@@ -45,7 +45,9 @@ scan_url(){(
   case "$url" in
     http:*|https:*)
       echo "### URL: [$url] ###" 1>&2
-      $dir/page-pictures.casper.js "$url" </dev/null
+      #$dir/page-pictures.casper.js "$url" </dev/null
+      output_dir=$PWD
+      (set -x; cd $dir; npm start -- "$url" --output-dir="$output_dir") </dev/null
       ;;
     magnet:*)
       surl=$(echo "$url" |cut -c1-40)
@@ -59,7 +61,6 @@ scan_url(){(
   esac
 )}
 
-# echo $( xclip -out 2>/dev/null ) 하면 자연스럽게 '\n' 붙일 수 있다.
 if pbpaste -help 2>/dev/null; then
     _peek(){
       echo "$(pbpaste)"
@@ -72,22 +73,60 @@ else
 	}
     else
 	_peek(){
-          echo "$(xclip -out -target STRING -selection primary </dev/null 2>/dev/null)" # 왠지모르지만 url 은 STRING ( default )
+	  echo "$(xclip -out -target STRING -selection primary </dev/null 2>/dev/null)" # 왠지모르지만 url 은 STRING ( default )
         }
     fi
 fi
 
+
+# fork 1
+
+(
+
+  urlprev=
+  while :
+  do
+    url=$(_peek)
+    case "$url" in
+      $urlprev)
+	sleep 1
+	;;
+      http://*|https://*|magnet:*)
+	echo "$url" >> .history
+	echo "$url" >> .queue
+        echo "[queued] $url" 1>&2
+	;;
+    esac
+    urlprev="$url"
+  done
+
+) &
+
+child_pid=$!
+trap "kill -9 $child_pid || true; exit 1" KILL TERM INT
+
+# parent loop
 while :
 do
-  url=$(_peek)
-  test "$urlprev" = "$url" && url=
-  case "$url" in
-    http://*|https://*|magnet:*)
-      urlprev="$url"
-      scan_url "$url"
-      fix_names --no-dry-run ./*.jpg ./*.jpeg ./*.png
-      echo "### Listening..." 1>&2 ;;
-    *)
-      sleep 2 ;;
-    esac
+
+  if [ -f .queue ]
+  then
+
+    # atomic mv
+    mv .queue .queue.tmp
+
+    # get unique entries
+    sort -u < .queue.tmp > .queue.work
+    rm -f .queue.tmp
+
+    # read and handle queued urls
+    cat .queue.work | while read url; do scan_url "$url"; done
+
+    fix_names --no-dry-run ./*.jpg ./*.jpeg ./*.png
+    rm -f .queue.work
+
+  fi
+
+  sleep 5
+
 done

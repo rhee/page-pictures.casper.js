@@ -1,5 +1,5 @@
 #!/bin/sh
- //bin/true 2>/dev/null; exec casperjs              --web-security=false --ignore-ssl-errors=true --verbose --log-level=info "$0" "$@"
+//bin/true 2>/dev/null; exec casperjs              --web-security=false --ignore-ssl-errors=true --verbose --log-level=info "$0" "$@"
 //bin/true 2>/dev/null; exec casperjs --debug=true --web-security=false --ignore-ssl-errors=true --verbose --log-level=info "$0" "$@"
 
 var
@@ -12,7 +12,8 @@ var
         minWidth: 1080,
         minHeight: 1080,
         minPixels: 1920 * 1080,
-        maxScroll: 0,
+        maxScroll: 20,
+        maxEmptyScroll: 5,
     },
     casper = require('casper').create({
         verbose: true,
@@ -33,7 +34,7 @@ var url_passed = {};
 
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
 
 casper.options.waitTimeout = config.timeout;
 casper.userAgent(config.agent);
@@ -51,19 +52,19 @@ var messages = [
 for (var i = 0; i < messages.length; i++) {
     var message = messages[i];
     casper.echo('### added handler for event: ' + message);
-    casper.on(message, function() {
+    casper.on(message, function () {
         this.echo('### ' + message, 'ERROR');
         this.echo(JSON.stringify(arguments, null, '  '));
     });
 }
 
-casper.on('remote.message', function(message) {
+casper.on('remote.message', function (message) {
     this.echo(message, 'INFO');
 });
 
-casper.on('page.initialized', function(page) {
+casper.on('page.initialized', function (page) {
     page.evaluate(
-        function(config, page) {
+        function (config, page) {
             window.screen = {
                 width: config.windowWidth,
                 height: config.windowHeight
@@ -76,7 +77,7 @@ casper.on('page.initialized', function(page) {
         page);
 });
 
-casper.on('resource.received', function(resource) {
+casper.on('resource.received', function (resource) {
     var url = resource.url,
         contentType = resource.contentType,
         bodySize = resource.bodySize;
@@ -88,12 +89,12 @@ casper.on('resource.received', function(resource) {
     }
 });
 
-casper.on('resource.error', function(resourceError) {
+casper.on('resource.error', function (resourceError) {
     this.echo('[resource.error] ' + resourceError.errorCode + ', ' + errorString, 'ERROR');
     this.echo('url=' + resourceError.url, 'ERROR');
 });
 
-casper.on('error', function(msg, backtrace) {
+casper.on('error', function (msg, backtrace) {
     this.echo('[error] ' + msg, 'ERROR');
     this.echo(JSON.stringify(backtrace, null, '  '));
 });
@@ -102,52 +103,29 @@ casper.on('error', function(msg, backtrace) {
 //////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
 
-var last_file_number = 1;
-
-function download_resource(src, mimeType) {
-    var filename = make_filename(mimeType);
-    casper.echo('=== [download_resource]: ' + mimeType + ' ' + filename, 'INFO');
-    try {
-        casper.download(src, filename);
-    } catch (e) {
-        casper.echo('### download_resource failed: ' + e, 'ERROR');
-    }
-
-    function make_filename(mimeType) {
-        var ext, filename;
-        ext = mimeType.split(/\//).pop().toLowerCase();
-        if (0 === mimeType.indexOf('image/jpeg')) {
-            ext = 'jpg';
-        }
-        do {
-            last_file_number += 1;
-            filename = pad(last_file_number, 8) + '.' + ext;
-        } while (fs.exists(filename));
-        return filename;
-
-    }
-
-    // format number
-    function pad(n, width, z) {
-        z = z || '0';
-        n = n + '';
-        return n.length >= width ? n : new Array(width - n.length + 1).join(z) + n;
-    }
-
-}
-
 function handle_page(casper, url) {
     var
         i,
         next_y,
         cx = config.windowWidth / 2 | 0,
-        cy_incr = config.windowHeight * 99 / 100 | 0;
+        cy_incr = config.windowHeight * 99 / 100 | 0,
+        num_scroll = 0,
+        empty_scroll = 0;
 
     next_y = 0;
 
-    casper.thenOpen(url)
+    casper.thenOpen(url, function (response) {
+        var contentType = response.headers.get('Content-Type');
+        if (contentType.match(/^image\//)) {
+            this.echo('=== scroll === [' + num_scroll + ']: image_url: ' + url, 'INFO');
+            new_url = build_dummy_uri([url]);
+            this.evaluate(function (new_url) {
+                location.assign(new_url);
+            }, new_url)
+        }
+    })
         .viewport(config.windowWidth, config.windowHeight)
-        .then(function() {
+        .then(function () {
             handle_page_continue(this)
         });
 
@@ -155,16 +133,21 @@ function handle_page(casper, url) {
 
     function handle_page_continue(casper) {
         casper.wait(5000)
-            .then(function() {
-                this.evaluate(collect_resources, casper_received_urls, config);
-                var page_height = this.evaluate(function() {
+            .then(function () {
+                var new_count = this.evaluate(collect_resources, casper_received_urls, config);
+                var page_height = this.evaluate(function () {
                     return document.body.scrollHeight;
                 });
-                if (next_y + config.windowHeight >= page_height) { // done?
-                    var resources = casper.evaluate(function() {
-                            return window.collected_resources;
-                        }),
-                        urls = Object.keys(resources);
+                this.echo('=== scroll === [' + num_scroll + ']: ' + next_y + '/' + page_height + ' found ' + new_count, 'INFO');
+                if (0 == new_count) empty_scroll++;
+                if (next_y + config.windowHeight >= page_height || // done yet?
+                    num_scroll >= config.maxScroll || // max scroll reached in indefinite scroll?
+                    empty_scroll >= config.maxEmptyScroll // more than specified consecutive empty scroll
+                ) {
+                    var resources = casper.evaluate(function () {
+                        return window.collected_resources;
+                    }),
+                        urls = Object.keys(resources || {});
                     for (var i = 0; i < urls.length; i++) {
                         download_resource(
                             urls[i],
@@ -173,9 +156,9 @@ function handle_page(casper, url) {
                     return;
                 }
                 next_y += cy_incr;
-                this.echo('===== scrollTo: ' + cx + ',' + next_y + '/' + page_height);
+                num_scroll += 1;
                 this.scrollTo(cx, next_y)
-                    .then(function() {
+                    .then(function () {
                         handle_page_continue(this)
                     })
             })
@@ -183,12 +166,13 @@ function handle_page(casper, url) {
 
     function collect_resources(resources, config) {
         if (typeof window.collected_resources === 'undefined') window.collected_resources = {};
+        var old_count = Object.keys(window.collected_resources).length;
         var list = Object.keys(resources);
         for (var i = 0; i < list.length; i++) {
             var url = list[i],
                 mimeType = resources[url].contentType,
                 img = new Image();
-            img.onLoad = function() {
+            img.onLoad = function () {
                 if (check_image_size(img, config)) {
                     window.collected_resources[url] = {
                         mimeType: mimeType,
@@ -201,8 +185,8 @@ function handle_page(casper, url) {
                 img.onLoad();
             }
         }
-        console.log('=== scroll ===: found ' + Object.keys(window.collected_resources).length);
-        return window.collected_resources;
+        //return window.collected_resources;
+        return Object.keys(window.collected_resources).length - old_count;
 
         function check_image_size(img, config) {
             if (config.minHeight && img.height && img.height < config.minHeight) return false;
@@ -218,6 +202,10 @@ function handle_page(casper, url) {
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 
+var args = casper.cli.args.slice(0);
+var output_dir = casper.cli.options['output-dir'] || '.';
+var last_file_number = 1;
+
 // create dummy html for images
 function build_dummy_uri(image_list) {
     var html = '<body>';
@@ -228,7 +216,37 @@ function build_dummy_uri(image_list) {
     return 'data:text/html, ' + encodeURI(html)
 }
 
-var args = casper.cli.args.slice(0);
+function download_resource(src, mimeType) {
+    var filename = make_filename(output_dir, mimeType);
+    casper.echo('=== [download_resource]: ' + mimeType + ' ' + filename, 'INFO');
+    try {
+        casper.download(src, filename);
+    } catch (e) {
+        casper.echo('### download_resource failed: ' + e, 'ERROR');
+    }
+
+    function make_filename(output_dir, mimeType) {
+        var ext, filename;
+        ext = mimeType.split(/\//).pop().toLowerCase();
+        if (0 === mimeType.indexOf('image/jpeg')) {
+            ext = 'jpg';
+        }
+        do {
+            last_file_number += 1;
+            filename = output_dir + '/' + pad(last_file_number, 8) + '.' + ext;
+        } while (fs.exists(filename));
+        return filename;
+
+    }
+
+    // format number
+    function pad(n, width, z) {
+        z = z || '0';
+        n = n + '';
+        return n.length >= width ? n : new Array(width - n.length + 1).join(z) + n;
+    }
+
+}
 
 for (var i = 0; i < args.length; i++) {
     var url = args[i],
@@ -262,7 +280,7 @@ for (var i = 0; i < args.length; i++) {
 
 }
 
-casper.start().eachThen(Object.keys(args_urls), function(response) {
+casper.start().eachThen(Object.keys(args_urls), function (response) {
     if (!response.data) {
         this.echo('### skip empty url');
         return;
