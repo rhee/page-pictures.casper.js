@@ -119,6 +119,7 @@ function handle_page(casper, url) {
         if (contentType.match(/^image\//)) {
             this.echo('=== scroll === [' + num_scroll + ']: image_url: ' + url, 'INFO');
             new_url = build_dummy_uri([url]);
+            this.echo('=== scroll === [' + num_scroll + ']: wrapped_image_url: ' + new_url, 'INFO');
             this.evaluate(function (new_url) {
                 location.assign(new_url);
             }, new_url)
@@ -265,10 +266,10 @@ for (var i = 0; i < args.length; i++) {
         casper.echo('### is_youtube: ' + url);
         // NOTE: img.youtube.com urls: 0.jpg 1.jpg 2.jpg 3.jpg default.jpg hqdefault.jpg mqdefault.jpg sddefault.jpg maxresdefault.jpg
 
-        new_url = build_dummy_url(['http://img.youtube.com/vi/' + found[2] + '/hqdefault.jpg']);
+        new_url = build_dummy_uri(['http://img.youtube.com/vi/' + found[2] + '/hqdefault.jpg']);
         args_urls[new_url] = new_url;
 
-        new_url = build_dummy_url(['http://img.youtube.com/vi/' + found[2] + '/maxresdefault.jpg']);
+        new_url = build_dummy_uri(['http://img.youtube.com/vi/' + found[2] + '/maxresdefault.jpg']);
         args_urls[new_url] = new_url;
 
         continue;

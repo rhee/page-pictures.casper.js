@@ -1,5 +1,34 @@
 #!/bin/sh
 
+##################################################
+# BEGIN check required programs installed or not
+##################################################
+
+# check if realpath installed
+if ! realpath . >/dev/null 2>&1
+then
+  echo "'realpath' program not found" 1>&2
+  exit 1
+fi
+
+# check if phantomjs installed
+if ! phantomjs -v >/dev/null 2>&1
+then
+  echo "'phantomjs' program not found" 1>&2
+  exit 1
+fi
+
+# check if casperjs installed
+if ! casperjs --version >/dev/null 2>&1
+then
+  echo "'casperjs' program not found" 1>&2
+  exit 1
+fi
+
+##################################################
+# END check required programs installed or not
+##################################################
+
 PATH=/opt/nodejs/bin:$PATH
 export PATH
 
@@ -14,7 +43,7 @@ if ! openssl --help >/dev/null 2>&1; then
 fi
 
 dir="$(dirname "$(realpath "$0")")"
-#dir="$(cd "$(dirname "$(which "$0")")"; pwd -P)"
+echo "[watch-and-fetch] dir=" $dir 1>&2
 
 fix_names(){(
 
@@ -45,9 +74,9 @@ scan_url(){(
   case "$url" in
     http:*|https:*)
       echo "### URL: [$url] ###" 1>&2
-      #$dir/page-pictures.casper.js "$url" </dev/null
       output_dir=$PWD
-      (set -x; cd $dir; npm start -- "$url" --output-dir="$output_dir") </dev/null
+      (set -x; cd $dir; casperjs --web-security=false --ignore-ssl-errors=true --verbose --log-level=info page-pictures.casper.js "$url" --output-dir="$output_dir") </dev/null
+      #(set -x; cd $dir; npm start -- "$url" --output-dir="$output_dir") </dev/null
       ;;
     magnet:*)
       surl=$(echo "$url" |cut -c1-40)
@@ -122,7 +151,7 @@ do
     # read and handle queued urls
     cat .queue.work | while read url; do scan_url "$url"; done
 
-    fix_names --no-dry-run ./*.jpg ./*.jpeg ./*.png
+    fix_names --no-dry-run ./*.jpg ./*.jpeg ./*.png ./*.JPG ./*.JPEG ./*.PNG ./*.gif ./*.GIF
     rm -f .queue.work
 
   fi

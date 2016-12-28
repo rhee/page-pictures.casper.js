@@ -2,9 +2,9 @@
   "name": "page-pictures.casper.js",
   "version": "1.0.0",
   "description": "",
-  "main": "pp.casper.js",
+  "main": "page-pictures.casper.js",
   "scripts": {
-    "start": "./page-pictures.casper.js \"$@\"",
+    "start": "casperjs --web-security=false --ignore-ssl-errors=true --verbose --log-level=info page-pictures.casper.js ",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -18,7 +18,6 @@
   },
   "homepage": "https://github.com/rhee/page-pictures.casper.js#readme",
   "dependencies": {
-    "casperjs": "^1.1.3",
-    "phantomjs": "^2.1.7+deprecated"
+    "casperjs": "^1.1.2"
   }
 }
