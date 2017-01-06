@@ -10,7 +10,8 @@
 (
   IFS=:
   #pre_check_list="node -v:openssl version:realpath -h:identify -version:phantomjs -v:casperjs --version"
-  pre_check_list="node -v:openssl version:realpath -h:identify -version"
+  #pre_check_list="node -v:openssl version:realpath -h:identify -version"
+  pre_check_list="node -v:openssl version:identify -version"
   for cmd in $pre_check_list
   do
     if ! eval "$cmd" >/dev/null 2>&1
@@ -25,8 +26,13 @@
 # END check required programs installed or not
 ##################################################
 
-#dir="$(cd "$(dirname "$(which "$0")")"; pwd -P)"
-dir="$(dirname "$(realpath "$0")")"
+if realpath -h >/dev/null 2>&1
+then
+  dir="$(dirname "$(realpath "$0")")"
+else
+  dir="$(cd "$(dirname "$(which "$0")")"; pwd -P)"
+fi
+
 echo "[watch-and-fetch] dir=" $dir 1>&2
 
 fix_names(){(
