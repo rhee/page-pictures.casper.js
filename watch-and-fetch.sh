@@ -1,20 +1,23 @@
 #!/bin/sh
 
-PATH=/opt/nodejs/bin:$PATH
-export PATH
+#PATH=/opt/nodejs/bin:$PATH
+#export PATH
 
-if ! node -v >/dev/null 2>&1; then
-    echo "node.js not found" 1>&2
-    exit 1
-fi
+(
+  IFS=:
+  pre_check_list="node -v:openssl version:realpath -h:identify -version"
+  for cmd in $pre_check_list
+  do
+    if ! eval "$cmd" >/dev/null 2>&1
+    then
+      echo "command not found: $cmd" 1>&2
+      exit 1
+    fi
+  done
+) || exit 1
 
-if ! openssl --help >/dev/null 2>&1; then
-    echo "openssl not found" 1>&2
-    exit 1
-fi
-
-dir="$(dirname "$(realpath "$0")")"
 #dir="$(cd "$(dirname "$(which "$0")")"; pwd -P)"
+dir="$(dirname "$(realpath "$0")")"
 
 fix_names(){(
 
