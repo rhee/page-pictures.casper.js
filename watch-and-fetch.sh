@@ -10,8 +10,9 @@
 (
   IFS=:
   #pre_check_list="node -v:openssl version:realpath -h:identify -version:phantomjs -v:casperjs --version"
+  pre_check_list="node -v:openssl version:identify -version:phantomjs -v:casperjs --version"
   #pre_check_list="node -v:openssl version:realpath -h:identify -version"
-  pre_check_list="node -v:openssl version:identify -version"
+  #pre_check_list="node -v:openssl version:identify -version"
   for cmd in $pre_check_list
   do
     if ! eval "$cmd" >/dev/null 2>&1
@@ -66,7 +67,8 @@ scan_url(){(
       echo "### URL: [$url] ###" 1>&2
       output_dir=$PWD
       #(set -x; cd $dir; npm start -- "$url" --output-dir="$output_dir") </dev/null
-      (set -x; cd $dir; casperjs --web-security=false --ignore-ssl-errors=true --verbose --log-level=info page-pictures.casper.js "$url" --output-dir="$output_dir") </dev/null
+      #(set -x; cd $dir; casperjs --web-security=false --ignore-ssl-errors=true --verbose --log-level=info page-pictures.casper.js "$url" --output-dir="$output_dir") </dev/null
+      (set -x; page-pictures.casper.js "$url" --output-dir="$output_dir") </dev/null
       ;;
     magnet:*)
       surl=$(echo "$url" |cut -c1-40)
