@@ -11,7 +11,7 @@ var
         windowHeight: 4320, //1080,
         minWidth: 1080,
         minHeight: 1080,
-        minPixels: 1920 * 1080,
+        minPixels: 1080 * 1080,
         maxScroll: 20,
         maxEmptyScroll: 5,
     },
