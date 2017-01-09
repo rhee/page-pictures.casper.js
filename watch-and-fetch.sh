@@ -66,8 +66,6 @@ scan_url(){(
     http:*|https:*)
       echo "### URL: [$url] ###" 1>&2
       output_dir=$PWD
-      #(set -x; cd $dir; npm start -- "$url" --output-dir="$output_dir") </dev/null
-      #(set -x; cd $dir; casperjs --web-security=false --ignore-ssl-errors=true --verbose --log-level=info page-pictures.casper.js "$url" --output-dir="$output_dir") </dev/null
       (set -x; page-pictures.casper.js "$url" --output-dir="$output_dir") </dev/null
       ;;
     magnet:*)
