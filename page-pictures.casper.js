@@ -6,12 +6,12 @@ var
     config = {
         agent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.94 Safari/537.36',
         timeout: 60000,
-        minSize: 75000,
+        //minSize: 75000,
         windowWidth: 1920,
         windowHeight: 4320, //1080,
-        minWidth: 1080,
-        minHeight: 1080,
-        minPixels: 1080 * 1080,
+        minWidth: 690, //1080,
+        minHeight: 900, //1080,
+        minPixels: 690 * 900, //1080 * 1080,
         maxScroll: 20,
         maxEmptyScroll: 5,
     },
@@ -83,9 +83,9 @@ casper.on('resource.received', function (resource) {
         bodySize = resource.bodySize;
     /// collect url into casper_target_resources, if contentType bodySize matches
     if (/^image\//.test(contentType)) {
-        if (typeof bodySize == 'undefined' || bodySize > config.minSize) {
+        //if (typeof bodySize == 'undefined' || bodySize > config.minSize) {
             casper_received_urls[url] = resource;
-        }
+        //}
     }
 });
 
@@ -179,7 +179,9 @@ function handle_page(casper, url) {
                         mimeType: mimeType,
                         url: url
                     };
-                }
+                } else {
+		    console.info("***[page-pictures]*** skip small image: "+img.width+" x "+img.height)
+		}
             };
             img.src = url;
             if (img.complete || img.readyState === 4) {
